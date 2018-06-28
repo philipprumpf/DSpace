@@ -11,6 +11,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.SQLException;
+
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.log4j.Logger;
@@ -39,7 +40,8 @@ import org.springframework.web.multipart.MultipartFile;
  * @author Andrea Bollini (andrea.bollini at 4science.it)
  */
 public abstract class DSpaceRestRepository<T extends RestAddressableModel, ID extends Serializable>
-    extends AbstractDSpaceRestRepository implements PagingAndSortingRepository<T, ID> {
+    extends AbstractDSpaceRestRepository
+    implements PagingAndSortingRepository<T, ID> {
 
     private static final Logger log = Logger.getLogger(DSpaceRestRepository.class);
 
@@ -164,13 +166,12 @@ public abstract class DSpaceRestRepository<T extends RestAddressableModel, ID ex
         }
     }
 
-    protected T createAndReturn(Context context) throws SQLException, AuthorizeException,
-        RepositoryMethodNotImplementedException {
+    protected T createAndReturn(Context context) throws AuthorizeException, RepositoryMethodNotImplementedException {
         throw new RepositoryMethodNotImplementedException("No implementation found; Method not allowed!", "");
     }
 
-    public T upload(HttpServletRequest request, String apiCategory, String model, ID id, String extraField,
-                    MultipartFile file) throws Exception {
+    public T upload(HttpServletRequest request, String apiCategory, String model,
+                                                     ID id, String extraField, MultipartFile file) throws Exception {
         throw new RuntimeException("No implementation found; Method not allowed!");
     }
 

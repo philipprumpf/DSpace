@@ -786,6 +786,19 @@ public class SolrServiceImpl implements SearchService, IndexingService {
         return locations;
     }
 
+    protected List<String> getCommunityLocations(Community target) throws SQLException {
+        List<String> locations = new Vector<String>();
+        // build list of community ids
+        List<Community> communities = target.getParentCommunities();
+
+        // now put those into strings
+        for (Community community : communities) {
+            locations.add("m" + community.getID());
+        }
+
+        return locations;
+    }
+
     @Override
     public String createLocationQueryForAdministrableItems(Context context)
         throws SQLException {
@@ -901,9 +914,12 @@ public class SolrServiceImpl implements SearchService, IndexingService {
      */
     protected void buildDocument(Context context, Community community)
         throws SQLException, IOException {
+
+        List<String> locations = getCommunityLocations(community);
+
         // Create Document
         SolrInputDocument doc = buildDocument(Constants.COMMUNITY, community.getID(),
-                                              community.getHandle(), null);
+                                              community.getHandle(), locations);
 
         DiscoveryConfiguration discoveryConfiguration = SearchUtils.getDiscoveryConfiguration(community);
         DiscoveryHitHighlightingConfiguration highlightingConfiguration = discoveryConfiguration
@@ -1063,6 +1079,16 @@ public class SolrServiceImpl implements SearchService, IndexingService {
 
         List<DiscoveryConfiguration> discoveryConfigurations = SearchUtils.getAllDiscoveryConfigurations(item);
         addDiscoveryFields(doc, context, item, discoveryConfigurations);
+
+        //mandatory facet to show status on mydspace
+        final String typeText = StringUtils.deleteWhitespace(item.getTypeText().toLowerCase());
+        String acvalue = DSpaceServicesFactory.getInstance().getConfigurationService().getProperty(
+                "discovery.facet.namedtype." + typeText,
+                typeText + SolrServiceImpl.AUTHORITY_SEPARATOR + typeText);
+        if (StringUtils.isNotBlank(acvalue)) {
+            String fvalue = acvalue;
+            addNamedResourceTypeIndex(doc, acvalue, fvalue);
+        }
 
         // write the index and close the inputstreamreaders
         try {
@@ -1792,14 +1818,14 @@ public class SolrServiceImpl implements SearchService, IndexingService {
     }
 
     @Override
-    public DiscoverResult search(Context context, DSpaceObject dso,
+    public DiscoverResult search(Context context, BrowsableDSpaceObject dso,
                                  DiscoverQuery query)
         throws SearchServiceException {
         return search(context, dso, query, false);
     }
 
     @Override
-    public DiscoverResult search(Context context, DSpaceObject dso, DiscoverQuery discoveryQuery,
+    public DiscoverResult search(Context context, BrowsableDSpaceObject dso, DiscoverQuery discoveryQuery,
                                  boolean includeUnDiscoverable) throws SearchServiceException {
         if (dso != null) {
             if (dso instanceof Community) {
@@ -2135,6 +2161,8 @@ public class SolrServiceImpl implements SearchService, IndexingService {
         Serializable uid = null;
         if (type != null && id != null) {
             switch (type) {
+                case Constants.WORKSPACEITEM:
+                case Constants.WORKFLOWITEM:
                 case Constants.WORKFLOW_POOL:
                 case Constants.WORKFLOW_CLAIMED:
                     uid = Integer.parseInt((String) id);
@@ -2195,7 +2223,7 @@ public class SolrServiceImpl implements SearchService, IndexingService {
                 SolrDocument doc = (SolrDocument) iter.next();
 
                 BrowsableDSpaceObject o = (BrowsableDSpaceObject)contentServiceFactory
-                    .getDSpaceObjectService((Integer) doc.getFirstValue(RESOURCE_TYPE_FIELD))
+                    .getBrowsableDSpaceObjectService((Integer) doc.getFirstValue(RESOURCE_TYPE_FIELD))
                     .find(context, UUID.fromString((String) doc.getFirstValue(RESOURCE_ID_FIELD)));
 
                 if (o != null) {
@@ -2487,10 +2515,11 @@ public class SolrServiceImpl implements SearchService, IndexingService {
     }
 
     @Override
-    public FacetYearRange getFacetYearRange(Context context, DSpaceObject scope,
-            DiscoverySearchFilterFacet facet, List<String> filterQueries) throws SearchServiceException {
+    public FacetYearRange getFacetYearRange(Context context, BrowsableDSpaceObject scope,
+                                            DiscoverySearchFilterFacet facet, List<String> filterQueries,
+                                            DiscoverQuery parentQuery) throws SearchServiceException {
         FacetYearRange result = new FacetYearRange(facet);
-        result.calculateRange(context, filterQueries, scope, this);
+        result.calculateRange(context, filterQueries, scope, this, parentQuery);
         return result;
     }
 
