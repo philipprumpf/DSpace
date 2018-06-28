@@ -892,6 +892,7 @@ public class RestResourceController implements InitializingBean {
     public <T extends RestAddressableModel> ResourceSupport executeSearchMethods(@PathVariable String apiCategory,
                                                                                  @PathVariable String model,
                                                                                  @PathVariable String searchMethodName,
+                                                                                 HttpServletResponse response,
                                                                                  Pageable pageable, Sort sort,
                                                                                  PagedResourcesAssembler assembler,
                                                                                  @RequestParam MultiValueMap<String,
@@ -919,12 +920,16 @@ public class RestResourceController implements InitializingBean {
         returnPage = searchMethod.getReturnType().isAssignableFrom(Page.class);
         ResourceSupport result = null;
         if (returnPage) {
-            Page<DSpaceResource<T>> resources = ((Page<T>) searchResult).map(repository::wrapResource);
+            Page<DSpaceResource<T>> resources;
+            if (searchResult == null) {
+                resources = new PageImpl(new ArrayList(), pageable, 0);
+            } else {
+                resources = ((Page<T>) searchResult).map(repository::wrapResource);
+            }
             resources.forEach(linkService::addLinks);
             result = assembler.toResource(resources, link);
         } else {
-            T modelObject = (T) searchResult;
-            if (modelObject == null) {
+            if (searchResult == null) {
                 throw new ResourceNotFoundException(
                     apiCategory + "." + model + " with method: " + searchMethodName + " not found resource");
             }
